@@ -357,10 +357,18 @@
           <i class="fa-solid fa-user-shield text-emerald-400"></i> Agregar Empleado con Acceso
         </h3>
         <p class="text-xs text-slate-400">Registrá un nuevo empleado y su credencial de acceso. El horario y los objetivos se configuran luego desde <strong class="text-slate-200">Configurar</strong>.</p>
-        <form id="formAltaEmpleado" class="grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
+        <form id="formAltaEmpleado" class="grid grid-cols-1 md:grid-cols-6 gap-4 items-end">
           <div>
             <label class="block text-xs uppercase text-slate-400 mb-1">N° Legajo</label>
             <input type="text" id="altaLegajo" required placeholder="Ej: 0297" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2 text-sm text-white focus:outline-none focus:border-emerald-500">
+          </div>
+          <div>
+            <label class="block text-xs uppercase text-slate-400 mb-1">Rol / Permiso</label>
+            <select id="altaRol" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500">
+              <option value="empleado" selected>Empleado (vigilador)</option>
+              <option value="supervisor">Supervisor</option>
+              <option value="admin">Administrador</option>
+            </select>
           </div>
           <div>
             <label class="block text-xs uppercase text-slate-400 mb-1">Nombre Completo</label>

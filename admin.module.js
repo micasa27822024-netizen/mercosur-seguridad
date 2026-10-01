@@ -276,12 +276,18 @@ const secondaryAuth = getAuth(secondaryApp);
  * @param {string} legajo  N° de legajo (ej: "0297")
  * @param {string} nombre  Nombre completo (ej: "Juan Pérez")
  * @param {string} pin     PIN numérico de 4+ dígitos (ej: "3456")
+ * @param {string|null} fotoMaster  Foto máster en base64 (opcional)
+ * @param {string} rol     Rol a asignar: 'empleado' (por defecto), 'supervisor' o 'admin'.
  */
-async function registrarEmpleado(legajo, nombre, pin, fotoMaster = null) {
+async function registrarEmpleado(legajo, nombre, pin, fotoMaster = null, rol = 'empleado') {
   // a. Formateo de datos -> email y password sintéticos
   const legajoLimpio = String(legajo).trim();
   const nombreLimpio = String(nombre).trim();
   const pinLimpio    = String(pin).trim();
+
+  // Rol: solo se aceptan los tres valores válidos. Cualquier otro -> 'empleado'.
+  const rolesValidos = ['empleado', 'supervisor', 'admin'];
+  const rolLimpio = rolesValidos.includes(String(rol).trim()) ? String(rol).trim() : 'empleado';
 
   const emailEmpleado    = `${legajoLimpio}@mercosurseg.com`;
   const passwordEmpleado = pinLimpio.padStart(6, '0'); // "3456" -> "003456"
@@ -320,17 +326,21 @@ async function registrarEmpleado(legajo, nombre, pin, fotoMaster = null) {
     // las Reglas de Seguridad usan root.child('usuarios').child(auth.uid).child('legajo')
     // para autorizar que el empleado lea SOLO su propia ficha e historial.
     // Sin esta entrada, el empleado no podría ver sus datos ni fichar con
-    // validación completa. rol 'empleado' (no admin ni supervisor).
+    // validación completa. El rol se toma del selector del alta (por defecto
+    // 'empleado'; 'supervisor'/'admin' solo cuando el admin lo elige).
     await set(ref(mainDb, `usuarios/${uid}`), {
       legajo: legajoLimpio,
-      rol: 'empleado'
+      rol: rolLimpio
     });
 
     // d. Cerrar de inmediato la sesión secundaria
     await signOut(secondaryAuth);
 
-    alert(`✅ Empleado registrado con éxito.\nLegajo: ${legajoLimpio}\nNombre: ${nombreLimpio}\nPIN de acceso: ${pinLimpio}`);
-    return { ok: true, uid };
+    const etiquetaRol = rolLimpio === 'admin' ? 'Administrador'
+                      : rolLimpio === 'supervisor' ? 'Supervisor'
+                      : 'Empleado (vigilador)';
+    alert(`✅ Usuario registrado con éxito.\nLegajo: ${legajoLimpio}\nNombre: ${nombreLimpio}\nRol: ${etiquetaRol}\nPIN de acceso: ${pinLimpio}`);
+    return { ok: true, uid, rol: rolLimpio };
   } catch (error) {
     // e. Manejo claro de errores
     let mensaje;
@@ -589,6 +599,17 @@ if (formAltaEmpleado) {
     const nombre = document.getElementById('altaNombre').value;
     const pin    = document.getElementById('altaPin').value;
     const inputFoto = document.getElementById('altaFotoMaster');
+    const selRol = document.getElementById('altaRol');
+    const rol    = selRol ? selRol.value : 'empleado';
+
+    // Confirmación extra al crear un usuario con permisos elevados: un admin o
+    // supervisor NO es un vigilador más (puede ver/gestionar datos de todos).
+    if (rol === 'admin' || rol === 'supervisor') {
+      const etq = rol === 'admin' ? 'ADMINISTRADOR (acceso total al panel)' : 'SUPERVISOR (control operativo)';
+      if (!confirm('Vas a crear un usuario con rol ' + etq + '.\n\nLegajo: ' + String(legajo).trim() + '\n\n¿Confirmás que querés darle estos permisos?')) {
+        return;
+      }
+    }
 
     if (btn) {
       btn.disabled = true;
@@ -602,10 +623,12 @@ if (formAltaEmpleado) {
       try { fotoMasterBase64 = await window.convertirImagenBase64(inputFoto.files[0]); } catch (_) { fotoMasterBase64 = null; }
     }
 
-    const resultado = await registrarEmpleado(legajo, nombre, pin, fotoMasterBase64);
+    const resultado = await registrarEmpleado(legajo, nombre, pin, fotoMasterBase64, rol);
 
     if (resultado && resultado.ok) {
       formAltaEmpleado.reset();
+      // Tras reset, el selector vuelve a su valor por defecto ('empleado').
+      if (selRol) selRol.value = 'empleado';
       // Generar un nuevo PIN para la próxima alta
       if (typeof window.generarPinEmpleado === 'function') window.generarPinEmpleado();
       // Refrescar la tabla de personal si la función del panel existe
